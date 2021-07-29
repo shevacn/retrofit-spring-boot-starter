@@ -28,6 +28,11 @@ public class SentinelDegradeInterceptor extends BaseDegradeInterceptor {
             return chain.proceed(request);
         } catch (BlockException e) {
             throw new RetrofitBlockException(e);
+        } catch (Throwable t) {
+            Tracer.traceEntry(t, entry);
+//            throw t;
+            //这里也抛出RetrofitBlockException，可以让业务在试错时也能走到降级逻辑，而不至于报错
+            throw new RetrofitBlockException(t);
         } finally {
             if (entry != null) {
                 entry.exit();

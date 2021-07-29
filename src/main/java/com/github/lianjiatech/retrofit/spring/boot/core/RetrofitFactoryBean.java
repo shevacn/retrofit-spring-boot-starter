@@ -1,15 +1,46 @@
 package com.github.lianjiatech.retrofit.spring.boot.core;
 
-import com.github.lianjiatech.retrofit.spring.boot.annotation.*;
+import com.alibaba.csp.sentinel.slots.block.degrade.DegradeRule;
+import com.github.lianjiatech.retrofit.spring.boot.annotation.Intercept;
+import com.github.lianjiatech.retrofit.spring.boot.annotation.InterceptMark;
+import com.github.lianjiatech.retrofit.spring.boot.annotation.Intercepts;
+import com.github.lianjiatech.retrofit.spring.boot.annotation.OkHttpClientBuilder;
+import com.github.lianjiatech.retrofit.spring.boot.annotation.RetrofitClient;
 import com.github.lianjiatech.retrofit.spring.boot.config.DegradeProperty;
 import com.github.lianjiatech.retrofit.spring.boot.config.LogProperty;
 import com.github.lianjiatech.retrofit.spring.boot.config.RetrofitConfigBean;
 import com.github.lianjiatech.retrofit.spring.boot.config.RetrofitProperties;
-import com.github.lianjiatech.retrofit.spring.boot.degrade.*;
-import com.github.lianjiatech.retrofit.spring.boot.interceptor.*;
+import com.github.lianjiatech.retrofit.spring.boot.degrade.BaseResourceNameParser;
+import com.github.lianjiatech.retrofit.spring.boot.degrade.Degrade;
+import com.github.lianjiatech.retrofit.spring.boot.degrade.DegradeType;
+import com.github.lianjiatech.retrofit.spring.boot.degrade.FallbackFactory;
+import com.github.lianjiatech.retrofit.spring.boot.degrade.RetrofitDegradeRuleInitializer;
+import com.github.lianjiatech.retrofit.spring.boot.degrade.SentinelDegradeInterceptor;
+import com.github.lianjiatech.retrofit.spring.boot.interceptor.BaseGlobalInterceptor;
+import com.github.lianjiatech.retrofit.spring.boot.interceptor.BaseLoggingInterceptor;
+import com.github.lianjiatech.retrofit.spring.boot.interceptor.BasePathMatchInterceptor;
+import com.github.lianjiatech.retrofit.spring.boot.interceptor.ErrorDecoderInterceptor;
+import com.github.lianjiatech.retrofit.spring.boot.interceptor.LogLevel;
+import com.github.lianjiatech.retrofit.spring.boot.interceptor.LogStrategy;
+import com.github.lianjiatech.retrofit.spring.boot.interceptor.NetworkInterceptor;
+import com.github.lianjiatech.retrofit.spring.boot.interceptor.ServiceInstanceChooserInterceptor;
 import com.github.lianjiatech.retrofit.spring.boot.util.ApplicationContextUtils;
 import com.github.lianjiatech.retrofit.spring.boot.util.BeanExtendUtils;
 import com.github.lianjiatech.retrofit.spring.boot.util.RetrofitUtils;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Proxy;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import okhttp3.ConnectionPool;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
@@ -28,11 +59,6 @@ import org.springframework.util.StringUtils;
 import retrofit2.CallAdapter;
 import retrofit2.Converter;
 import retrofit2.Retrofit;
-
-import java.lang.annotation.Annotation;
-import java.lang.reflect.*;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author 陈添明
@@ -114,15 +140,17 @@ public class RetrofitFactoryBean<T> implements FactoryBean<T>, EnvironmentAware,
                 continue;
             }
 
-            DegradeStrategy degradeStrategy = degrade.degradeStrategy();
             BaseResourceNameParser resourceNameParser = retrofitConfigBean.getResourceNameParser();
             String resourceName = resourceNameParser.parseResourceName(method, environment);
 
-            RetrofitDegradeRule degradeRule = new RetrofitDegradeRule();
+            DegradeRule degradeRule = new DegradeRule();
             degradeRule.setCount(degrade.count());
-            degradeRule.setDegradeStrategy(degradeStrategy);
+            degradeRule.setGrade(degrade.grade());
             degradeRule.setTimeWindow(degrade.timeWindow());
-            degradeRule.setResourceName(resourceName);
+            degradeRule.setMinRequestAmount(degrade.minRequestAmount());
+            degradeRule.setSlowRatioThreshold(degrade.slowRatioThreshold());
+            degradeRule.setStatIntervalMs(degrade.statIntervalMs());
+            degradeRule.setResource(resourceName);
             RetrofitDegradeRuleInitializer.addRetrofitDegradeRule(degradeRule);
         }
     }
